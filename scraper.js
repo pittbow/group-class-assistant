@@ -22,16 +22,16 @@ const WEEKDAYS = ['週日', '週一', '週二', '週三', '週四', '週五', '�
 async function launchBrowser() {
   return puppeteer.launch({
     headless: 'new',
-    // 在雲端環境（Linux）使用系統 Chromium，本機使用 Puppeteer 內建版本
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
-      '--disable-software-rasterizer',
+      '--no-zygote',
       '--disable-extensions',
-      '--single-process',
+      '--disable-background-networking',
+      '--disable-default-apps',
+      '--mute-audio',
       '--lang=zh-TW',
     ],
   });
