@@ -1,0 +1,13 @@
+{
+  "name": "group-class-assistant",
+  "version": "1.0.0",
+  "description": "團課小幫手 - 健身工廠飛輪與拳擊有氧課表查詢 PWA",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.0",
+    "puppeteer": "^22.0.0"
+  }
+}

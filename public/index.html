@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="團課小幫手" />
+  <link rel="manifest" href="/manifest.json" />
+  <title>團課小幫手</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --bg:       #0f172a;
+      --surface:  #1e293b;
+      --surface2: #2d3a4f;
+      --orange:   #f97316;
+      --orange-d: #ea6b0a;
+      --blue:     #38bdf8;
+      --green:    #34d399;
+      --text:     #f1f5f9;
+      --muted:    #94a3b8;
+      --border:   #334155;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      padding: 16px 16px env(safe-area-inset-top, 0);
+      padding-top: calc(16px + env(safe-area-inset-top, 0));
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--orange);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+
+    /* ── Type toggle ── */
+    .type-toggle {
+      display: flex;
+      gap: 6px;
+    }
+    .type-btn {
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: none;
+      color: var(--muted);
+      font-size: .82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .type-btn.active-飛輪     { background: var(--orange); border-color: var(--orange); color: #fff; }
+    .type-btn.active-拳擊有氧 { background: var(--blue);   border-color: var(--blue);   color: #0f172a; }
+    .type-btn.active-全部     { background: var(--surface2); border-color: var(--border); color: var(--text); }
+
+    /* ── Region / Branch selects ── */
+    .selects-row {
+      display: grid;
+      grid-template-columns: 1fr 1.6fr;
+      gap: 8px;
+    }
+    select {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 10px;
+      font-size: .88rem;
+      outline: none;
+      width: 100%;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    select:focus { border-color: var(--orange); }
+
+    /* ── Main ── */
+    main {
+      flex: 1;
+      padding: 16px;
+      padding-bottom: calc(16px + env(safe-area-inset-bottom, 0));
+      max-width: 680px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* ── Search button ── */
+    #searchBtn {
+      width: 100%;
+      padding: 13px;
+      background: var(--orange);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background .2s;
+    }
+    #searchBtn:hover:not(:disabled) { background: var(--orange-d); }
+    #searchBtn:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* ── States ── */
+    .state {
+      text-align: center;
+      padding: 60px 16px;
+      color: var(--muted);
+    }
+    .state-icon { font-size: 3rem; margin-bottom: 12px; }
+    .state h3 { font-size: 1rem; margin-bottom: 6px; color: var(--text); }
+    .state p  { font-size: .85rem; line-height: 1.6; }
+
+    /* ── Cache info bar ── */
+    #cacheBar {
+      display: none;
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: .78rem;
+      color: var(--muted);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #refreshBtn {
+      background: none;
+      border: none;
+      color: var(--orange);
+      cursor: pointer;
+      font-size: .78rem;
+      font-weight: 600;
+    }
+
+    /* ── Day groups ── */
+    .day-group { margin-bottom: 20px; }
+    .day-label {
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .day-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .today-badge {
+      background: var(--orange);
+      color: #fff;
+      font-size: .65rem;
+      padding: 1px 6px;
+      border-radius: 8px;
+    }
+
+    /* ── Class card ── */
+    .class-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: border-color .2s;
+    }
+    .class-card:active { border-color: var(--orange); }
+
+    .class-type-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .dot-飛輪     { background: var(--orange); }
+    .dot-拳擊有氧 { background: var(--blue); }
+    .dot-其他     { background: var(--muted); }
+
+    .class-info { flex: 1; min-width: 0; }
+    .class-name {
+      font-size: .97rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .class-meta {
+      font-size: .8rem;
+      color: var(--muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .class-meta span { display: flex; align-items: center; gap: 3px; }
+
+    .class-time {
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .time-start { font-size: 1rem; font-weight: 700; color: var(--orange); }
+    .time-end   { font-size: .78rem; color: var(--muted); }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2.5px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Empty result ── */
+    .empty {
+      text-align: center;
+      padding: 40px 16px;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    /* ── Install hint ── */
+    #installHint {
+      display: none;
+      position: fixed;
+      bottom: calc(16px + env(safe-area-inset-bottom, 0));
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 18px;
+      font-size: .82rem;
+      color: var(--text);
+      text-align: center;
+      max-width: 320px;
+      width: calc(100% - 32px);
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+      z-index: 200;
+    }
+    #installHint strong { color: var(--orange); }
+    #installClose {
+      position: absolute;
+      top: 8px; right: 10px;
+      background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div class="logo">
+      <div class="logo-icon">🚴</div>
+      <span>團課小幫手</span>
+    </div>
+    <div class="type-toggle">
+      <button class="type-btn active-全部" data-type="全部"  onclick="setType('全部')">全部</button>
+      <button class="type-btn" data-type="飛輪"    onclick="setType('飛輪')">🚴 飛輪</button>
+      <button class="type-btn" data-type="拳擊有氧" onclick="setType('拳擊有氧')">🥊 拳擊</button>
+    </div>
+  </div>
+  <div class="selects-row">
+    <select id="regionSel" onchange="onRegionChange()">
+      <option value="">選擇縣市</option>
+    </select>
+    <select id="branchSel">
+      <option value="">選擇分店</option>
+    </select>
+  </div>
+</header>
+
+<main>
+  <button id="searchBtn" onclick="search()">
+    <span id="searchBtnText">🔍 查詢課表</span>
+  </button>
+
+  <div id="cacheBar" style="display:none">
+    <span id="cacheTime"></span>
+    <button id="refreshBtn" onclick="refresh()">重新抓取</button>
+  </div>
+
+  <div id="content">
+    <div class="state">
+      <div class="state-icon">🏋️</div>
+      <h3>選擇分店查詢課表</h3>
+      <p>支援健身工廠全台分店<br>飛輪課程與拳擊有氧課程</p>
+    </div>
+  </div>
+</main>
+
+<!-- PWA 安裝提示 -->
+<div id="installHint">
+  <button id="installClose" onclick="document.getElementById('installHint').style.display='none'">✕</button>
+  <strong>加到手機桌面</strong><br>
+  點選瀏覽器選單 → <strong>「加入主畫面」</strong><br>即可像 APP 一樣使用
+</div>
+
+<script>
+  // ─── State ────────────────────────────────────────────────────────────────
+
+  let branches = [];
+  let currentType = '全部';
+  let lastResult  = null;
+
+  const WEEKDAY_NAMES = ['週日','週一','週二','週三','週四','週五','週六'];
+  const TODAY_IDX = new Date().getDay();
+
+  // ─── Init ─────────────────────────────────────────────────────────────────
+
+  async function init() {
+    await loadBranches();
+    registerSW();
+
+    // PWA 安裝提示（iOS 上無 beforeinstallprompt）
+    const isIos = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+    const isStandalone = navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+    if (isIos && !isStandalone) {
+      setTimeout(() => { document.getElementById('installHint').style.display = 'block'; }, 3000);
+    }
+  }
+
+  async function loadBranches() {
+    try {
+      const res = await fetch('/api/branches');
+      branches  = await res.json();
+      renderRegions();
+    } catch (e) {
+      console.error('載入分店失敗', e);
+    }
+  }
+
+  // ─── Dropdowns ────────────────────────────────────────────────────────────
+
+  function renderRegions() {
+    const sel = document.getElementById('regionSel');
+    sel.innerHTML = '<option value="">選擇縣市</option>';
+    branches.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.region;
+      opt.textContent = r.region;
+      sel.appendChild(opt);
+    });
+  }
+
+  function onRegionChange() {
+    const region   = document.getElementById('regionSel').value;
+    const branchSel = document.getElementById('branchSel');
+    branchSel.innerHTML = '<option value="">選擇分店</option>';
+
+    if (!region) return;
+    const found = branches.find(r => r.region === region);
+    if (!found) return;
+
+    found.branches.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b;
+      opt.textContent = b;
+      branchSel.appendChild(opt);
+    });
+  }
+
+  // ─── Type toggle ──────────────────────────────────────────────────────────
+
+  function setType(type) {
+    currentType = type;
+    document.querySelectorAll('.type-btn').forEach(btn => {
+      btn.className = 'type-btn' + (btn.dataset.type === type ? ` active-${type}` : '');
+    });
+    // 如果已有結果，重新渲染篩選
+    if (lastResult) renderSchedule(lastResult, type);
+  }
+
+  // ─── Search ───────────────────────────────────────────────────────────────
+
+  async function search() {
+    const branch = document.getElementById('branchSel').value;
+    if (!branch) { showToast('請先選擇分店'); return; }
+
+    setLoading(true);
+    document.getElementById('cacheBar').style.display = 'none';
+
+    try {
+      const res  = await fetch(`/api/schedule?branch=${encodeURIComponent(branch)}&type=${encodeURIComponent(currentType)}`);
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || '查詢失敗');
+
+      lastResult = data;
+      renderSchedule(data, currentType);
+
+      // 顯示快取時間
+      if (data.fetchedAt) {
+        const cacheBar = document.getElementById('cacheBar');
+        cacheBar.style.display = 'flex';
+        document.getElementById('cacheTime').textContent =
+          `資料時間：${new Date(data.fetchedAt).toLocaleString('zh-TW', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' })}`;
+      }
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function refresh() {
+    const branch = document.getElementById('branchSel').value;
+    if (!branch) return;
+    await fetch('/api/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ branch, type: currentType })
+    });
+    await search();
+  }
+
+  // ─── Render schedule ──────────────────────────────────────────────────────
+
+  function renderSchedule(data, type) {
+    const content = document.getElementById('content');
+
+    let classes = data.classes || [];
+
+    // 前端再過濾
+    if (type !== '全部') {
+      classes = classes.filter(c => {
+        const name = (c.name || '').toLowerCase();
+        if (type === '飛輪')    return name.includes('飛輪') || name.includes('cycle') || name.includes('e-cycle');
+        if (type === '拳擊有氧') return name.includes('拳擊') || name.includes('boxing') || name.includes('aerobic') || name.includes('piyo');
+        return false;
+      });
+    }
+
+    if (classes.length === 0) {
+      content.innerHTML = `
+        <div class="empty">
+          <div style="font-size:2.5rem;margin-bottom:12px">🔍</div>
+          <div>本週暫無相關課程資料</div>
+          <div style="font-size:.8rem;margin-top:6px;color:var(--muted)">
+            可嘗試切換「全部」課程類型，或改選其他分店
+          </div>
+        </div>`;
+      return;
+    }
+
+    // 按星期分組
+    const grouped = groupByWeekday(classes);
+    const days = [1,2,3,4,5,6,0]; // 週一到週日
+
+    let html = '';
+    for (const dayIdx of days) {
+      const items = grouped[dayIdx];
+      if (!items || items.length === 0) continue;
+
+      const isToday  = dayIdx === TODAY_IDX;
+      const dayLabel = WEEKDAY_NAMES[dayIdx];
+
+      html += `<div class="day-group">
+        <div class="day-label">
+          ${dayLabel}${isToday ? '<span class="today-badge">今天</span>' : ''}
+        </div>`;
+
+      for (const cls of items) {
+        const dotClass = cls.type === '飛輪' ? 'dot-飛輪' : cls.type === '拳擊有氧' ? 'dot-拳擊有氧' : 'dot-其他';
+        const startTime = formatTime(cls.time);
+        const endTime   = cls.endTime ? formatTime(cls.endTime) : '';
+
+        html += `
+        <div class="class-card">
+          <div class="class-type-dot ${dotClass}"></div>
+          <div class="class-info">
+            <div class="class-name">${cls.name || '未知課程'}</div>
+            <div class="class-meta">
+              ${cls.instructor ? `<span>👤 ${cls.instructor}</span>` : ''}
+              ${cls.location   ? `<span>📍 ${cls.location}</span>`   : ''}
+              ${cls.spots != null ? `<span>💺 ${cls.spots} 位</span>` : ''}
+            </div>
+          </div>
+          <div class="class-time">
+            <div class="time-start">${startTime}</div>
+            ${endTime ? `<div class="time-end">${endTime}</div>` : ''}
+          </div>
+        </div>`;
+      }
+      html += '</div>';
+    }
+
+    // 如果沒有星期資訊，顯示清單
+    if (!html) {
+      html = classes.map(cls => `
+        <div class="class-card">
+          <div class="class-type-dot ${cls.type === '飛輪' ? 'dot-飛輪' : cls.type === '拳擊有氧' ? 'dot-拳擊有氧' : 'dot-其他'}"></div>
+          <div class="class-info">
+            <div class="class-name">${cls.name || '未知課程'}</div>
+            <div class="class-meta">
+              ${cls.time ? `<span>🕐 ${formatTime(cls.time)}</span>` : ''}
+              ${cls.instructor ? `<span>👤 ${cls.instructor}</span>` : ''}
+            </div>
+          </div>
+          <div class="class-time">
+            <div class="time-start">${formatTime(cls.time)}</div>
+          </div>
+        </div>`).join('');
+    }
+
+    content.innerHTML = html || `<div class="empty">本週暫無課程資料</div>`;
+  }
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+
+  function groupByWeekday(classes) {
+    const groups = {};
+    classes.forEach(cls => {
+      let dayIdx = -1;
+
+      if (cls.weekday) {
+        const match = WEEKDAY_NAMES.indexOf(cls.weekday);
+        if (match !== -1) dayIdx = match;
+        else {
+          const n = parseInt(cls.weekday);
+          if (!isNaN(n)) dayIdx = n % 7;
+        }
+      }
+      if (cls.date) {
+        const d = new Date(cls.date);
+        if (!isNaN(d)) dayIdx = d.getDay();
+      }
+
+      if (dayIdx === -1) dayIdx = TODAY_IDX; // 無日期資訊：歸入今天
+
+      if (!groups[dayIdx]) groups[dayIdx] = [];
+
+      // 判斷課程類型
+      const name = (cls.name || '').toLowerCase();
+      cls.type = name.includes('飛輪') || name.includes('cycle') ? '飛輪' :
+                 name.includes('拳擊') || name.includes('boxing') || name.includes('aerobic') || name.includes('piyo') ? '拳擊有氧' : '其他';
+
+      groups[dayIdx].push(cls);
+    });
+
+    // 每天按時間排序
+    Object.keys(groups).forEach(day => {
+      groups[day].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    });
+
+    return groups;
+  }
+
+  function formatTime(time) {
+    if (!time) return '';
+    const m = time.match(/(\d{1,2}):(\d{2})/);
+    if (!m) return time;
+    return `${m[1].padStart(2,'0')}:${m[2]}`;
+  }
+
+  function setLoading(loading) {
+    const btn  = document.getElementById('searchBtn');
+    const text = document.getElementById('searchBtnText');
+    btn.disabled = loading;
+    text.innerHTML = loading
+      ? '<div class="spinner"></div> 載入中…'
+      : '🔍 查詢課表';
+  }
+
+  function showError(msg) {
+    document.getElementById('content').innerHTML = `
+      <div class="state">
+        <div class="state-icon">⚠️</div>
+        <h3>查詢失敗</h3>
+        <p>${msg}</p>
+      </div>`;
+  }
+
+  let toastTimer;
+  function showToast(msg) {
+    let toast = document.getElementById('toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'toast';
+      toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1e293b;color:#f1f5f9;padding:10px 20px;border-radius:8px;font-size:.85rem;z-index:300;border:1px solid #334155;transition:opacity .3s;';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+  }
+
+  function registerSW() {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(e => console.log('SW:', e));
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>
