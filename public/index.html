@@ -92,9 +92,52 @@
     /* ── Region / Branch selects ── */
     .selects-row {
       display: grid;
-      grid-template-columns: 1fr 1.6fr;
+      grid-template-columns: 1fr 1.6fr auto;
       gap: 8px;
     }
+    #favBtn {
+      width: 40px;
+      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+    #favBtn.on { color: #fbbf24; border-color: #fbbf24; }
+    #favBtn:disabled { opacity: .35; cursor: default; }
+
+    /* ── Favorite branches ── */
+    #favRow { display: none; gap: 6px; overflow-x: auto; margin-bottom: 10px; padding-bottom: 2px; }
+    #favRow.show { display: flex; }
+    .fav-chip {
+      flex: none;
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: .8rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .fav-chip.active { border-color: #fbbf24; color: #fbbf24; }
+
+    /* ── Day / time-of-day filters ── */
+    .filters { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 14px; }
+    .chip-group { display: flex; gap: 6px; }
+    .chip {
+      padding: 5px 13px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: none;
+      color: var(--muted);
+      font-size: .8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .chip.active { background: var(--surface2); border-color: var(--orange); color: var(--text); }
+    .class-card.past { opacity: .4; }
     select {
       background: var(--surface2);
       color: var(--text);
@@ -324,13 +367,15 @@
       <button class="type-btn" data-type="拳擊有氧" onclick="setType('拳擊有氧')">🥊 拳擊</button>
     </div>
   </div>
+  <div id="favRow"></div>
   <div class="selects-row">
     <select id="regionSel" onchange="onRegionChange()">
       <option value="">選擇縣市</option>
     </select>
-    <select id="branchSel">
+    <select id="branchSel" onchange="updateFavBtn()">
       <option value="">選擇分店</option>
     </select>
+    <button id="favBtn" onclick="toggleFav()" title="收藏這間分店" disabled>☆</button>
   </div>
   <input id="kwInput" type="search" placeholder="🔎 關鍵字篩選（課名、教練、教室、分店，如：瑜珈、阿沖）" autocomplete="off" oninput="onKeyword()">
 </header>
@@ -339,6 +384,20 @@
   <button id="searchBtn" onclick="search()">
     <span id="searchBtnText">🔍 查詢課表</span>
   </button>
+
+  <div class="filters">
+    <div class="chip-group" id="dayChips">
+      <button class="chip active" data-v="week"     onclick="setDayMode('week')">全週</button>
+      <button class="chip"        data-v="today"    onclick="setDayMode('today')">今天</button>
+      <button class="chip"        data-v="tomorrow" onclick="setDayMode('tomorrow')">明天</button>
+    </div>
+    <div class="chip-group" id="periodChips">
+      <button class="chip active" data-v="all" onclick="setPeriod('all')">全天</button>
+      <button class="chip"        data-v="am"  onclick="setPeriod('am')">早上</button>
+      <button class="chip"        data-v="pm"  onclick="setPeriod('pm')">下午</button>
+      <button class="chip"        data-v="eve" onclick="setPeriod('eve')">晚上</button>
+    </div>
+  </div>
 
   <div id="cacheBar" style="display:none">
     <span id="cacheTime"></span>
@@ -374,13 +433,20 @@
   const BOXING_RE = /拳擊|boxing|武力對決|戰鬥|combat/i;
 
   const WEEKDAY_NAMES = ['週日','週一','週二','週三','週四','週五','週六'];
-  const TODAY_IDX = new Date().getDay();
+  const todayIdx = () => new Date().getDay();        // 每次重新取，App 開著跨日也正確
+  const nowMinutes = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+  const toMinutes = t => { const m = (t || '').match(/(\d{1,2}):(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
+
+  let dayMode = 'week';   // 'week' | 'today' | 'tomorrow'
+  let period  = 'all';    // 'all' | 'am'(<12:00) | 'pm'(12:00–17:00) | 'eve'(17:00 後)
 
   // ─── Init ─────────────────────────────────────────────────────────────────
 
   async function init() {
     await loadBranches();
     registerSW();
+    renderFavs();
+    openStartBranch();
 
     // PWA 安裝提示（iOS 上無 beforeinstallprompt）
     const isIos = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
@@ -417,6 +483,7 @@
     const region   = document.getElementById('regionSel').value;
     const branchSel = document.getElementById('branchSel');
     branchSel.innerHTML = '<option value="">選擇分店</option>';
+    updateFavBtn();
 
     if (!region) return;
     const found = branches.find(r => r.region === region);
@@ -435,6 +502,84 @@
       opt.textContent = b;
       branchSel.appendChild(opt);
     });
+  }
+
+  // ─── 今天／明天、時段 ─────────────────────────────────────────────────────
+
+  function setChip(groupId, value) {
+    document.querySelectorAll(`#${groupId} .chip`).forEach(b => b.classList.toggle('active', b.dataset.v === value));
+  }
+  function setDayMode(v) { dayMode = v; setChip('dayChips', v);    if (lastResult) renderSchedule(lastResult, currentType); }
+  function setPeriod(v)  { period  = v; setChip('periodChips', v); if (lastResult) renderSchedule(lastResult, currentType); }
+
+  // ─── 收藏分店（存在這支手機的 localStorage，不需登入）──────────────────────
+
+  const store = {
+    get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  };
+  const getFavs = () => store.get('gca:favs', []);
+  const currentSel = () => ({ region: document.getElementById('regionSel').value, branch: document.getElementById('branchSel').value });
+  const isFav = (r, b) => getFavs().some(f => f.region === r && f.branch === b);
+
+  function updateFavBtn() {
+    const { region, branch } = currentSel();
+    const btn = document.getElementById('favBtn');
+    const specific = !!branch && branch !== ALL_BRANCHES;
+    const on = specific && isFav(region, branch);
+    btn.disabled = !specific;
+    btn.classList.toggle('on', on);
+    btn.textContent = on ? '★' : '☆';
+    btn.title = on ? '取消收藏' : '收藏這間分店';
+    renderFavs();
+  }
+
+  function toggleFav() {
+    const { region, branch } = currentSel();
+    if (!branch || branch === ALL_BRANCHES) return;
+    const favs = getFavs();
+    const i = favs.findIndex(f => f.region === region && f.branch === branch);
+    if (i >= 0) favs.splice(i, 1);
+    else if (favs.length >= 8) { showToast('最多收藏 8 間分店'); return; }
+    else favs.push({ region, branch });
+    store.set('gca:favs', favs);
+    updateFavBtn();
+  }
+
+  function renderFavs() {
+    const row = document.getElementById('favRow');
+    const favs = getFavs();
+    const { region, branch } = currentSel();
+    row.classList.toggle('show', favs.length > 0);
+    row.innerHTML = favs.map((f, i) =>
+      `<button class="fav-chip${f.region === region && f.branch === branch ? ' active' : ''}" onclick="openFav(${i})">★ ${escapeHtml(f.branch)}</button>`
+    ).join('');
+  }
+
+  function openFav(i) {
+    const f = getFavs()[i];
+    if (f) selectBranch(f.region, f.branch);
+  }
+
+  function selectBranch(region, branch) {
+    const regionSel = document.getElementById('regionSel');
+    regionSel.value = region;
+    onRegionChange();
+    const branchSel = document.getElementById('branchSel');
+    branchSel.value = branch;
+    if (branchSel.value !== branch) return false;   // 官網已無此分店
+    updateFavBtn();
+    search();
+    return true;
+  }
+
+  // 開啟 App 時直接顯示：上次看的分店（若已收藏），否則第一個收藏
+  function openStartBranch() {
+    const favs = getFavs();
+    if (!favs.length) return;
+    const last = store.get('gca:last', null);
+    const order = [last && favs.find(f => f.region === last.region && f.branch === last.branch), ...favs].filter(Boolean);
+    for (const f of order) if (selectBranch(f.region, f.branch)) return;
   }
 
   // ─── Type toggle ──────────────────────────────────────────────────────────
@@ -470,6 +615,7 @@
 
       lastResult = data;
       renderSchedule(data, currentType);
+      if (branch !== ALL_BRANCHES) store.set('gca:last', { region, branch });
 
       // 顯示快取時間
       if (data.fetchedAt) {
@@ -525,14 +671,40 @@
       });
     }
 
+    // 時段篩選（依開始時間）
+    if (period !== 'all') {
+      classes = classes.filter(c => {
+        const m = toMinutes(c.time);
+        if (m == null) return false;
+        return period === 'am' ? m < 12 * 60 : period === 'pm' ? m >= 12 * 60 && m < 17 * 60 : m >= 17 * 60;
+      });
+    }
+
+    // 今天／明天；「今天」會隱藏已經下課的課
+    const tIdx = todayIdx();
+    const sundayTomorrow = dayMode === 'tomorrow' && tIdx === 0;  // 明天是下週一，不在本週資料內
+    if (dayMode === 'today') {
+      const now = nowMinutes();
+      classes = classes.filter(c => getDayIdx(c) === tIdx && (toMinutes(c.endTime || c.time) ?? 0) >= now);
+    } else if (dayMode === 'tomorrow') {
+      classes = sundayTomorrow ? [] : classes.filter(c => getDayIdx(c) === (tIdx + 1) % 7);
+    }
+
     if (classes.length === 0) {
+      const filtered = kw.length || period !== 'all' || dayMode !== 'week';
+      const title = sundayTomorrow ? '明天是下週一，本週資料尚未涵蓋'
+        : kw.length ? `找不到符合「${escapeHtml(kw.join(' '))}」的課程`
+        : dayMode === 'today' ? '今天沒有符合的課程了'
+        : filtered ? '沒有符合條件的課程'
+        : '本週暫無相關課程資料';
+      const hint = sundayTomorrow ? '切換到「全週」或之後再查'
+        : filtered ? '可放寬關鍵字、時段或日期條件'
+        : '可嘗試切換「全部」課程類型，或改選其他分店';
       content.innerHTML = `
         <div class="empty">
           <div style="font-size:2.5rem;margin-bottom:12px">🔍</div>
-          <div>${kw.length ? `找不到符合「${escapeHtml(kw.join(' '))}」的課程` : '本週暫無相關課程資料'}</div>
-          <div style="font-size:.8rem;margin-top:6px;color:var(--muted)">
-            ${kw.length ? '可換個關鍵字，或清除搜尋框' : '可嘗試切換「全部」課程類型，或改選其他分店'}
-          </div>
+          <div>${title}</div>
+          <div style="font-size:.8rem;margin-top:6px;color:var(--muted)">${hint}</div>
         </div>`;
       return;
     }
@@ -546,7 +718,7 @@
       const items = grouped[dayIdx];
       if (!items || items.length === 0) continue;
 
-      const isToday  = dayIdx === TODAY_IDX;
+      const isToday  = dayIdx === todayIdx();
       const dayLabel = WEEKDAY_NAMES[dayIdx];
 
       html += `<div class="day-group">
@@ -559,8 +731,9 @@
         const startTime = formatTime(cls.time);
         const endTime   = cls.endTime ? formatTime(cls.endTime) : '';
 
+        const past = isPast(dayIdx, cls);
         html += `
-        <div class="class-card">
+        <div class="class-card${past ? ' past' : ''}">
           <div class="class-type-dot ${dotClass}"></div>
           <div class="class-info">
             <div class="class-name">${cls.name || '未知課程'}</div>
@@ -617,25 +790,37 @@
     kwTimer = setTimeout(() => { if (lastResult) renderSchedule(lastResult, currentType); }, 150);
   }
 
+  function getDayIdx(cls) {
+    let dayIdx = -1;
+
+    if (cls.weekday) {
+      const match = WEEKDAY_NAMES.indexOf(cls.weekday);
+      if (match !== -1) dayIdx = match;
+      else {
+        const n = parseInt(cls.weekday);
+        if (!isNaN(n)) dayIdx = n % 7;
+      }
+    }
+    if (cls.date) {
+      const d = new Date(cls.date);
+      if (!isNaN(d)) dayIdx = d.getDay();
+    }
+
+    return dayIdx === -1 ? todayIdx() : dayIdx; // 無日期資訊：歸入今天
+  }
+
+  // 本週（週一起算）已過去的日子，或今天已下課的課
+  function isPast(dayIdx, cls) {
+    const mon = d => (d + 6) % 7;
+    const today = mon(todayIdx()), day = mon(dayIdx);
+    if (day !== today) return day < today;
+    return (toMinutes(cls.endTime || cls.time) ?? 24 * 60) < nowMinutes();
+  }
+
   function groupByWeekday(classes) {
     const groups = {};
     classes.forEach(cls => {
-      let dayIdx = -1;
-
-      if (cls.weekday) {
-        const match = WEEKDAY_NAMES.indexOf(cls.weekday);
-        if (match !== -1) dayIdx = match;
-        else {
-          const n = parseInt(cls.weekday);
-          if (!isNaN(n)) dayIdx = n % 7;
-        }
-      }
-      if (cls.date) {
-        const d = new Date(cls.date);
-        if (!isNaN(d)) dayIdx = d.getDay();
-      }
-
-      if (dayIdx === -1) dayIdx = TODAY_IDX; // 無日期資訊：歸入今天
+      const dayIdx = getDayIdx(cls);
 
       if (!groups[dayIdx]) groups[dayIdx] = [];
 
