@@ -109,6 +109,22 @@
     }
     select:focus { border-color: var(--orange); }
 
+    /* ── Keyword search ── */
+    #kwInput {
+      width: 100%;
+      margin-top: 8px;
+      background: var(--surface2);
+      color: var(--text);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 10px;
+      font-size: .88rem;
+      outline: none;
+      font-family: inherit;
+    }
+    #kwInput:focus { border-color: var(--orange); }
+    #kwInput::placeholder { color: var(--muted); }
+
     /* ── Main ── */
     main {
       flex: 1;
@@ -316,6 +332,7 @@
       <option value="">選擇分店</option>
     </select>
   </div>
+  <input id="kwInput" type="search" placeholder="🔎 關鍵字篩選（課名、教練、教室，如：瑜珈、阿沖）" autocomplete="off" oninput="onKeyword()">
 </header>
 
 <main>
@@ -472,6 +489,7 @@
     const content = document.getElementById('content');
 
     let classes = data.classes || [];
+    const kw = getKeyword();
 
     // 前端再過濾
     if (type !== '全部') {
@@ -483,13 +501,21 @@
       });
     }
 
+    // 關鍵字篩選（課名／教練／教室，空白分隔視為「且」）
+    if (kw.length) {
+      classes = classes.filter(c => {
+        const hay = `${c.name || ''} ${c.instructor || ''} ${c.location || ''}`.toLowerCase();
+        return kw.every(k => hay.includes(k));
+      });
+    }
+
     if (classes.length === 0) {
       content.innerHTML = `
         <div class="empty">
           <div style="font-size:2.5rem;margin-bottom:12px">🔍</div>
-          <div>本週暫無相關課程資料</div>
+          <div>${kw.length ? `找不到符合「${escapeHtml(kw.join(' '))}」的課程` : '本週暫無相關課程資料'}</div>
           <div style="font-size:.8rem;margin-top:6px;color:var(--muted)">
-            可嘗試切換「全部」課程類型，或改選其他分店
+            ${kw.length ? '可換個關鍵字，或清除搜尋框' : '可嘗試切換「全部」課程類型，或改選其他分店'}
           </div>
         </div>`;
       return;
@@ -559,6 +585,20 @@
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
+
+  function getKeyword() {
+    return document.getElementById('kwInput').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  }
+
+  let kwTimer;
+  function onKeyword() {
+    clearTimeout(kwTimer);
+    kwTimer = setTimeout(() => { if (lastResult) renderSchedule(lastResult, currentType); }, 150);
+  }
 
   function groupByWeekday(classes) {
     const groups = {};

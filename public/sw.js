@@ -1,6 +1,6 @@
 // Service Worker — 讓 PWA 可在離線時顯示上次的課表
 
-const CACHE_NAME = 'group-class-v2';
+const CACHE_NAME = 'group-class-v3';
 const STATIC_ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (e) => {
