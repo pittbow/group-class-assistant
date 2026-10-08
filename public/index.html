@@ -351,6 +351,10 @@
   let currentType = '全部';
   let lastResult  = null;
 
+  // 與 scraper.js 的 CYCLE_RE / BOXING_RE 保持一致
+  const CYCLE_RE  = /飛輪|cycle|循環/i;
+  const BOXING_RE = /拳擊|boxing|武力對決|戰鬥|combat/i;
+
   const WEEKDAY_NAMES = ['週日','週一','週二','週三','週四','週五','週六'];
   const TODAY_IDX = new Date().getDay();
 
@@ -429,7 +433,7 @@
     document.getElementById('cacheBar').style.display = 'none';
 
     try {
-      const res  = await fetch(`/api/schedule?branch=${encodeURIComponent(branch)}&type=${encodeURIComponent(currentType)}`);
+      const res  = await fetch(`/api/schedule?branch=${encodeURIComponent(branch)}&type=${encodeURIComponent('全部')}`) // 一律取全部，類型由前端篩選，切換類型不必重查;
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.error || '查詢失敗');
@@ -457,7 +461,7 @@
     await fetch('/api/refresh', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ branch, type: currentType })
+      body: JSON.stringify({ branch, type: '全部' })
     });
     await search();
   }
@@ -472,9 +476,9 @@
     // 前端再過濾
     if (type !== '全部') {
       classes = classes.filter(c => {
-        const name = (c.name || '').toLowerCase();
-        if (type === '飛輪')    return name.includes('飛輪') || name.includes('cycle') || name.includes('e-cycle');
-        if (type === '拳擊有氧') return name.includes('拳擊') || name.includes('boxing') || name.includes('aerobic') || name.includes('piyo');
+        const name = c.name || '';
+        if (type === '飛輪')    return CYCLE_RE.test(name);
+        if (type === '拳擊有氧') return BOXING_RE.test(name);
         return false;
       });
     }
@@ -579,9 +583,8 @@
       if (!groups[dayIdx]) groups[dayIdx] = [];
 
       // 判斷課程類型
-      const name = (cls.name || '').toLowerCase();
-      cls.type = name.includes('飛輪') || name.includes('cycle') ? '飛輪' :
-                 name.includes('拳擊') || name.includes('boxing') || name.includes('aerobic') || name.includes('piyo') ? '拳擊有氧' : '其他';
+      const name = cls.name || '';
+      cls.type = CYCLE_RE.test(name) ? '飛輪' : BOXING_RE.test(name) ? '拳擊有氧' : '其他';
 
       groups[dayIdx].push(cls);
     });

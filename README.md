@@ -1,6 +1,6 @@
 # 🚴 團課小幫手
 
-健身工廠**飛輪**與**拳擊有氧**課表查詢 PWA，支援全台所有分店，可加到手機桌面像 APP 一樣使用。
+健身工廠**飛輪**與**拳擊／格鬥有氧**（武力對決、戰鬥有氧、極限戰鬥）課表查詢 PWA，支援全台所有分店，可加到手機桌面像 APP 一樣使用。
 
 ---
 
@@ -32,7 +32,7 @@ cd path/to/group-class-assistant
 npm install
 ```
 
-> 注意：Puppeteer 會自動下載 Chromium（約 170MB），首次安裝需要較長時間，請耐心等待。
+> 不再使用 Puppeteer：直接呼叫官網課表頁的內部介面，安裝只需 express，需 Node 18+。
 
 ### 4. 啟動伺服器
 
@@ -67,12 +67,12 @@ npm start
 
 ### 爬蟲機制
 
-本專案使用 **Puppeteer** 模擬瀏覽器操作，抓取健身工廠官網動態載入的課表。
+本專案直接呼叫健身工廠官網課表頁使用的內部 AJAX 介面並解析 HTML 課表（不需要瀏覽器）。官網改版時需修改 `scraper.js`。
 
 爬蟲流程：
-1. 開啟無頭瀏覽器，前往課表頁面
-2. 選擇分店、課程類型
-3. 攔截 API 回應（若有）或解析渲染後的 HTML
+1. 取得官網 session cookie 與分店清單
+2. 呼叫 `/tw/course/ajax/filterSchedule` 取得該分店本週課表（HTML）
+3. 解析成 JSON，並依課程名稱篩選飛輪／拳擊類
 4. 結果快取 4 小時
 
 > **注意**：健身工廠官網結構可能不定期更新，若課表無法正常顯示，可能需要調整 `scraper.js` 中的選擇器設定。
@@ -97,7 +97,7 @@ npm start
 ```
 group-class-assistant/
 ├── server.js        # Express 後端
-├── scraper.js       # Puppeteer 爬蟲
+├── scraper.js       # 官網課表抓取與解析
 ├── cache.js         # 記憶體快取
 ├── package.json
 ├── public/
