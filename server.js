@@ -61,11 +61,70 @@ app.get('/api/schedule', async (req, res) => {
   }
 });
 
+// ─── API: 取得整個縣市所有分店的課表 ───────────────────────────────────────────
+
+async function getBranches() {
+  const cached = cache.get('branches');
+  if (cached) return cached;
+  let branches;
+  try { branches = await fetchBranches(); }
+  catch (err) { console.error('取得分店清單失敗，使用預設清單：', err.message); branches = getDefaultBranches(); }
+  cache.set('branches', branches, cache.TTL.BRANCHES);
+  return branches;
+}
+
+// 每間分店的課表共用同一份快取（一律快取「全部」類型，由前端依類型／關鍵字篩選）
+async function getBranchSchedule(branch) {
+  const key = `schedule:${branch}:全部`;
+  const cached = cache.get(key);
+  if (cached) return cached;
+  const result = await fetchSchedule(branch, '全部');
+  cache.set(key, result, cache.TTL.SCHEDULE);
+  return result;
+}
+
+app.get('/api/region-schedule', async (req, res) => {
+  const { region } = req.query;
+  if (!region) return res.status(400).json({ error: '請提供縣市名稱 (region)' });
+
+  const found = (await getBranches()).find(r => r.region === region);
+  if (!found) return res.status(404).json({ error: `找不到縣市：${region}` });
+
+  const queue = [...found.branches];
+  const classes = [];
+  const failed = [];
+  let oldest = null;
+
+  // 同時最多 4 個請求，避免一次對官網送出太多
+  await Promise.all(Array.from({ length: 4 }, async () => {
+    while (queue.length) {
+      const branch = queue.shift();
+      try {
+        const r = await getBranchSchedule(branch);
+        r.classes.forEach(c => classes.push({ ...c, branch }));
+        if (!oldest || r.fetchedAt < oldest) oldest = r.fetchedAt;
+      } catch (err) {
+        console.error(`取得 ${branch} 課表失敗：`, err.message);
+        failed.push(branch);
+      }
+    }
+  }));
+
+  if (!classes.length && failed.length) {
+    return res.status(500).json({ error: '無法取得課表，請稍後再試', failed });
+  }
+  res.json({ classes, failed, branchCount: found.branches.length, fetchedAt: oldest || new Date().toISOString() });
+});
+
 // ─── API: 清除快取（手動刷新） ─────────────────────────────────────────────────
 
 app.post('/api/refresh', (req, res) => {
-  const { branch, type } = req.body;
-  if (branch) {
+  const { branch, type, region } = req.body;
+  if (region) {
+    const found = (cache.get('branches') || []).find(r => r.region === region);
+    (found ? found.branches : []).forEach(b => cache.del(`schedule:${b}:全部`));
+    res.json({ message: `已清除 ${region} 的快取` });
+  } else if (branch) {
     cache.del(`schedule:${branch}:${type || '全部'}`);
     res.json({ message: `已清除 ${branch} 的快取` });
   } else {
