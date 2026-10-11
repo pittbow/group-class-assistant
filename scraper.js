@@ -59,7 +59,26 @@ function todayTW() {
   return new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
 }
 
-function parseSchedule(scheduleView) {
+// 台灣時間的日期運算（YYYY-MM-DD）
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function mondayOf(dateStr) {
+  const dow = new Date(dateStr + 'T00:00:00Z').getUTCDay();   // 0=週日
+  return addDays(dateStr, -((dow + 6) % 7));
+}
+
+// 官網實際只公布約 4 週課表（更遠的週回傳空白），多查 2 週以涵蓋公布範圍的變動
+const MAX_WEEKS = 6;
+function weekStarts(count = 1) {
+  const n = Math.max(1, Math.min(MAX_WEEKS, count | 0));
+  const first = mondayOf(todayTW());
+  return Array.from({ length: n }, (_, i) => addDays(first, i * 7));
+}
+
+function parseSchedule(scheduleView, weekStart) {
   const classes = [];
   for (const row of scheduleView.split('<div class="tr">').slice(1)) {
     row.split('<div class="td">').slice(1, 8).forEach((cell, col) => {
@@ -74,6 +93,7 @@ function parseSchedule(scheduleView) {
         endTime: end,
         instructor,
         weekday: WEEKDAYS_MON_FIRST[col],
+        date: addDays(weekStart, col),
         location: decode(pick('classroom')),
       });
     });
@@ -94,14 +114,18 @@ function matchesType(name, type) {
 }
 
 /**
- * 抓取指定分店「本週」課表
- * @param {string} branch - 分店 key（如 '台北信義'）
- * @param {string} type   - '飛輪' | '拳擊有氧' | '全部'
+ * 抓取指定分店某一週的課表
+ * @param {string} branch    - 分店 key（如 '台北信義'）
+ * @param {string} type      - '飛輪' | '拳擊有氧' | '全部'
+ * @param {string} weekStart - 該週週一（YYYY-MM-DD），預設本週
  */
-async function fetchSchedule(branch, type = '全部') {
-  console.log(`[Scraper] 抓取課表：${branch} / ${type}`);
+async function fetchSchedule(branch, type = '全部', weekStart = mondayOf(todayTW())) {
+  console.log(`[Scraper] 抓取課表：${branch} / ${type} / ${weekStart}`);
+  // 官網只接受「今天」或之後的日期；本週用今天，之後的週用該週週一
+  const today = todayTW();
   const q = new URLSearchParams({
-    page: 'schedule', store: branch, cate: 0, class: 0, teacher: 0, room: 0, date: todayTW(),
+    page: 'schedule', store: branch, cate: 0, class: 0, teacher: 0, room: 0,
+    date: weekStart < today ? today : weekStart,
   });
 
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -118,8 +142,8 @@ async function fetchSchedule(branch, type = '全部') {
     });
     if (!(res.headers.get('content-type') || '').includes('json')) continue; // session 失效，重取一次
     const data = await res.json();
-    const classes = parseSchedule(data.scheduleView || '').filter(c => matchesType(c.name, type));
-    return { classes, fetchedAt: new Date().toISOString(), source: 'api' };
+    const classes = parseSchedule(data.scheduleView || '', weekStart).filter(c => matchesType(c.name, type));
+    return { classes, weekStart, fetchedAt: new Date().toISOString(), source: 'api' };
   }
   throw new Error('官網回應異常（找不到該分店或官網暫時無法連線）');
 }
@@ -133,4 +157,4 @@ function getDefaultBranches() {
   ];
 }
 
-module.exports = { fetchBranches, fetchSchedule, getDefaultBranches };
+module.exports = { fetchBranches, fetchSchedule, getDefaultBranches, weekStarts, matchesType, MAX_WEEKS };

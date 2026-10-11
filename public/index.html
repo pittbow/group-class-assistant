@@ -386,8 +386,14 @@
   </button>
 
   <div class="filters">
+    <div class="chip-group" id="rangeChips" title="搜尋範圍（官網約公布 4 週）">
+      <button class="chip active" data-v="1" onclick="setRange(1)">本週</button>
+      <button class="chip"        data-v="2" onclick="setRange(2)">2 週</button>
+      <button class="chip"        data-v="4" onclick="setRange(4)">4 週</button>
+      <button class="chip"        data-v="6" onclick="setRange(6)">全部公布</button>
+    </div>
     <div class="chip-group" id="dayChips">
-      <button class="chip active" data-v="week"     onclick="setDayMode('week')">全週</button>
+      <button class="chip active" data-v="week"     onclick="setDayMode('week')">全部</button>
       <button class="chip"        data-v="today"    onclick="setDayMode('today')">今天</button>
       <button class="chip"        data-v="tomorrow" onclick="setDayMode('tomorrow')">明天</button>
     </div>
@@ -435,8 +441,14 @@
   const WEEKDAY_NAMES = ['週日','週一','週二','週三','週四','週五','週六'];
   const todayIdx = () => new Date().getDay();        // 每次重新取，App 開著跨日也正確
   const nowMinutes = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+  const pad2 = n => String(n).padStart(2, '0');
+  const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;   // 本機時區
+  const todayStr = () => ymd(new Date());
+  const tomorrowStr = () => { const d = new Date(); d.setDate(d.getDate() + 1); return ymd(d); };
+  const dateToIdx = str => { const [y, m, d] = str.split('-').map(Number); return new Date(y, m - 1, d).getDay(); };
   const toMinutes = t => { const m = (t || '').match(/(\d{1,2}):(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
 
+  let weeks   = 1;        // 搜尋範圍（週數）：1 本週 / 2 / 4 / 6 全部公布
   let dayMode = 'week';   // 'week' | 'today' | 'tomorrow'
   let period  = 'all';    // 'all' | 'am'(<12:00) | 'pm'(12:00–17:00) | 'eve'(17:00 後)
 
@@ -508,6 +520,11 @@
 
   function setChip(groupId, value) {
     document.querySelectorAll(`#${groupId} .chip`).forEach(b => b.classList.toggle('active', b.dataset.v === value));
+  }
+  function setRange(v) {
+    weeks = v;
+    setChip('rangeChips', String(v));
+    if (document.getElementById('branchSel').value) search();   // 範圍改變需重新向伺服器取資料
   }
   function setDayMode(v) { dayMode = v; setChip('dayChips', v);    if (lastResult) renderSchedule(lastResult, currentType); }
   function setPeriod(v)  { period  = v; setChip('periodChips', v); if (lastResult) renderSchedule(lastResult, currentType); }
@@ -606,8 +623,8 @@
     try {
       // 一律取全部課程，類型與關鍵字由前端篩選，切換時不必重查
       const url = branch === ALL_BRANCHES
-        ? `/api/region-schedule?region=${encodeURIComponent(region)}`
-        : `/api/schedule?branch=${encodeURIComponent(branch)}&type=${encodeURIComponent('全部')}`;
+        ? `/api/region-schedule?region=${encodeURIComponent(region)}&weeks=${weeks}`
+        : `/api/schedule?branch=${encodeURIComponent(branch)}&type=${encodeURIComponent('全部')}&weeks=${weeks}`;
       const res  = await fetch(url);
       const data = await res.json();
 
@@ -623,7 +640,7 @@
         cacheBar.style.display = 'flex';
         document.getElementById('cacheTime').textContent =
           `資料時間：${new Date(data.fetchedAt).toLocaleString('zh-TW', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' })}`
-          + (data.failed && data.failed.length ? `（${data.failed.length} 間載入失敗：${data.failed.join('、')}）` : '');
+          + (data.failed && data.failed.length ? `（載入失敗：${data.failed.join('、')}）` : '');
       }
     } catch (err) {
       showError(err.message);
@@ -681,23 +698,26 @@
     }
 
     // 今天／明天；「今天」會隱藏已經下課的課
-    const tIdx = todayIdx();
-    const sundayTomorrow = dayMode === 'tomorrow' && tIdx === 0;  // 明天是下週一，不在本週資料內
+    const today = todayStr();
+    const sundayTomorrow = dayMode === 'tomorrow' && weeks === 1 && todayIdx() === 0;  // 明天是下週一，不在「本週」範圍內
     if (dayMode === 'today') {
       const now = nowMinutes();
-      classes = classes.filter(c => getDayIdx(c) === tIdx && (toMinutes(c.endTime || c.time) ?? 0) >= now);
+      classes = classes.filter(c => getDate(c) === today && (toMinutes(c.endTime || c.time) ?? 0) >= now);
     } else if (dayMode === 'tomorrow') {
-      classes = sundayTomorrow ? [] : classes.filter(c => getDayIdx(c) === (tIdx + 1) % 7);
+      const tomorrow = tomorrowStr();
+      classes = classes.filter(c => getDate(c) === tomorrow);
+    } else if (weeks > 1) {
+      classes = classes.filter(c => getDate(c) >= today);   // 跨週搜尋：只看今天起的課，過去的日子不顯示
     }
 
     if (classes.length === 0) {
       const filtered = kw.length || period !== 'all' || dayMode !== 'week';
-      const title = sundayTomorrow ? '明天是下週一，本週資料尚未涵蓋'
+      const title = sundayTomorrow ? '明天是下週一，不在「本週」範圍內'
         : kw.length ? `找不到符合「${escapeHtml(kw.join(' '))}」的課程`
         : dayMode === 'today' ? '今天沒有符合的課程了'
         : filtered ? '沒有符合條件的課程'
-        : '本週暫無相關課程資料';
-      const hint = sundayTomorrow ? '切換到「全週」或之後再查'
+        : weeks > 1 ? '這段期間官網尚未公布課程' : '本週暫無相關課程資料';
+      const hint = sundayTomorrow ? '把上方範圍改成「2 週」以上就能看到'
         : filtered ? '可放寬關鍵字、時段或日期條件'
         : '可嘗試切換「全部」課程類型，或改選其他分店';
       content.innerHTML = `
@@ -709,17 +729,16 @@
       return;
     }
 
-    // 按星期分組
-    const grouped = groupByWeekday(classes);
-    const days = [1,2,3,4,5,6,0]; // 週一到週日
+    // 按日期分組（跨週時每天各一組）
+    const grouped = groupByDate(classes);
 
     let html = '';
-    for (const dayIdx of days) {
-      const items = grouped[dayIdx];
-      if (!items || items.length === 0) continue;
+    for (const date of Object.keys(grouped).sort()) {
+      const items = grouped[date];
 
-      const isToday  = dayIdx === todayIdx();
-      const dayLabel = WEEKDAY_NAMES[dayIdx];
+      const isToday  = date === today;
+      const [, mm, dd] = date.split('-').map(Number);
+      const dayLabel = `${WEEKDAY_NAMES[dateToIdx(date)]} ${mm}/${dd}`;
 
       html += `<div class="day-group">
         <div class="day-label">
@@ -731,7 +750,7 @@
         const startTime = formatTime(cls.time);
         const endTime   = cls.endTime ? formatTime(cls.endTime) : '';
 
-        const past = isPast(dayIdx, cls);
+        const past = isPast(cls);
         html += `
         <div class="class-card${past ? ' past' : ''}">
           <div class="class-type-dot ${dotClass}"></div>
@@ -753,24 +772,6 @@
       html += '</div>';
     }
 
-    // 如果沒有星期資訊，顯示清單
-    if (!html) {
-      html = classes.map(cls => `
-        <div class="class-card">
-          <div class="class-type-dot ${cls.type === '飛輪' ? 'dot-飛輪' : cls.type === '拳擊有氧' ? 'dot-拳擊有氧' : 'dot-其他'}"></div>
-          <div class="class-info">
-            <div class="class-name">${cls.name || '未知課程'}</div>
-            <div class="class-meta">
-              ${cls.time ? `<span>🕐 ${formatTime(cls.time)}</span>` : ''}
-              ${cls.instructor ? `<span>👤 ${cls.instructor}</span>` : ''}
-            </div>
-          </div>
-          <div class="class-time">
-            <div class="time-start">${formatTime(cls.time)}</div>
-          </div>
-        </div>`).join('');
-    }
-
     content.innerHTML = html || `<div class="empty">本週暫無課程資料</div>`;
   }
 
@@ -790,45 +791,32 @@
     kwTimer = setTimeout(() => { if (lastResult) renderSchedule(lastResult, currentType); }, 150);
   }
 
-  function getDayIdx(cls) {
-    let dayIdx = -1;
-
-    if (cls.weekday) {
-      const match = WEEKDAY_NAMES.indexOf(cls.weekday);
-      if (match !== -1) dayIdx = match;
-      else {
-        const n = parseInt(cls.weekday);
-        if (!isNaN(n)) dayIdx = n % 7;
-      }
-    }
-    if (cls.date) {
-      const d = new Date(cls.date);
-      if (!isNaN(d)) dayIdx = d.getDay();
-    }
-
-    return dayIdx === -1 ? todayIdx() : dayIdx; // 無日期資訊：歸入今天
+  // 課程日期（YYYY-MM-DD）；伺服器一律附帶 date，缺少時以「本週的該星期」推算
+  function getDate(cls) {
+    if (cls.date) return cls.date;
+    const idx = WEEKDAY_NAMES.indexOf(cls.weekday);
+    if (idx === -1) return todayStr();
+    const d = new Date();
+    d.setDate(d.getDate() + (idx - d.getDay()));
+    return ymd(d);
   }
 
-  // 本週（週一起算）已過去的日子，或今天已下課的課
-  function isPast(dayIdx, cls) {
-    const mon = d => (d + 6) % 7;
-    const today = mon(todayIdx()), day = mon(dayIdx);
-    if (day !== today) return day < today;
+  // 已經過去：日期早於今天，或今天已下課
+  function isPast(cls) {
+    const date = getDate(cls), today = todayStr();
+    if (date !== today) return date < today;
     return (toMinutes(cls.endTime || cls.time) ?? 24 * 60) < nowMinutes();
   }
 
-  function groupByWeekday(classes) {
+  function groupByDate(classes) {
     const groups = {};
     classes.forEach(cls => {
-      const dayIdx = getDayIdx(cls);
-
-      if (!groups[dayIdx]) groups[dayIdx] = [];
+      const date = getDate(cls);
+      (groups[date] = groups[date] || []).push(cls);
 
       // 判斷課程類型
       const name = cls.name || '';
       cls.type = CYCLE_RE.test(name) ? '飛輪' : BOXING_RE.test(name) ? '拳擊有氧' : '其他';
-
-      groups[dayIdx].push(cls);
     });
 
     // 每天按時間排序

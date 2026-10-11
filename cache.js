@@ -24,9 +24,13 @@ function del(key) {
   store.delete(key);
 }
 
+function delPrefix(prefix) {
+  for (const key of store.keys()) if (key.startsWith(prefix)) store.delete(key);
+}
+
 const TTL = {
   BRANCHES: 24 * 60 * 60 * 1000,  // 24 小時
   SCHEDULE:  4 * 60 * 60 * 1000,  //  4 小時
 };
 
-module.exports = { get, set, del, TTL };
+module.exports = { get, set, del, delPrefix, TTL };
