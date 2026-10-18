@@ -4,7 +4,7 @@
   "description": "健身工廠飛輪與拳擊有氧課表查詢",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
+  "background_color": "#0b1220",
   "theme_color": "#f97316",
   "orientation": "portrait",
   "icons": [

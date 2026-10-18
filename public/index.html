@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f172a" />
+  <meta name="theme-color" content="#0b1220" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="團課小幫手" />
@@ -351,33 +351,204 @@
       top: 8px; right: 10px;
       background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem;
     }
+
+    /* ── 2026 UI refresh ── */
+    :root {
+      --bg: #0b1220;
+      --surface: #151f30;
+      --surface2: #202d41;
+      --surface3: #29384f;
+      --border: #2b3a50;
+      --orange: #ff7a1a;
+      --orange-d: #ec6808;
+      --violet: #a78bfa;
+      --pink: #f472b6;
+      --shadow: 0 12px 32px rgba(0, 0, 0, .18);
+    }
+    body {
+      background:
+        radial-gradient(circle at 50% -160px, rgba(249, 115, 22, .14), transparent 360px),
+        var(--bg);
+    }
+    header {
+      padding: calc(12px + env(safe-area-inset-top, 0)) 16px 12px;
+      background: rgba(21, 31, 48, .94);
+      backdrop-filter: blur(18px);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, .16);
+    }
+    .header-inner, main { max-width: 960px; margin-inline: auto; }
+    .header-top { margin-bottom: 10px; }
+    .logo { font-size: 1.08rem; }
+    .logo-icon {
+      background: linear-gradient(145deg, #ff9138, #f15b0a);
+      box-shadow: 0 7px 18px rgba(249, 115, 22, .26);
+    }
+    .brand-copy small { display: block; margin-top: 1px; color: var(--muted); font-size: .69rem; font-weight: 500; }
+    .selects-row { grid-template-columns: minmax(0, .9fr) minmax(0, 1.5fr) 44px; }
+    select, #kwInput {
+      min-height: 44px;
+      border-radius: 12px;
+      border-color: transparent;
+      background: var(--surface2);
+    }
+    #kwInput { padding-left: 14px; }
+    #favBtn { width: 44px; min-height: 44px; border-radius: 12px; border-color: transparent; }
+    .fav-chip { min-height: 36px; }
+    main { max-width: 960px; padding: 18px 16px 32px; }
+    #searchBtn {
+      min-height: 48px;
+      border-radius: 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 9px 22px rgba(249, 115, 22, .22);
+    }
+    .quick-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .quick-tools #dayChips { min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .quick-tools .chip { min-width: 0; min-height: 40px; }
+    #filterToggle {
+      min-height: 40px;
+      padding: 0 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      font-size: .82rem;
+      font-weight: 650;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    #filterCount {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      margin-left: 5px;
+      padding: 0 5px;
+      border-radius: 9px;
+      background: var(--orange);
+      color: #fff;
+      font-size: .67rem;
+    }
+    #filterCount:empty { display: none; }
+    .filter-panel {
+      display: none;
+      margin-bottom: 14px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .filter-panel.open { display: grid; gap: 14px; }
+    .filter-section { display: grid; gap: 7px; }
+    .filter-label { color: var(--muted); font-size: .72rem; font-weight: 700; letter-spacing: .06em; }
+    .filter-panel .chip-group, .filter-panel .type-toggle { overflow-x: auto; padding-bottom: 2px; }
+    .filter-panel .chip, .filter-panel .type-btn { min-height: 36px; flex: 0 0 auto; }
+    .chip { border-color: transparent; background: rgba(255,255,255,.025); }
+    .chip.active { background: rgba(249,115,22,.13); border-color: rgba(249,115,22,.75); color: #fff; }
+    #querySummary {
+      display: none;
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 14px;
+      padding: 16px;
+      border: 1px solid rgba(249, 115, 22, .32);
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(249,115,22,.17), rgba(30,41,59,.76) 66%);
+      box-shadow: var(--shadow);
+    }
+    #querySummary.show { display: block; }
+    .summary-eyebrow { color: #fdba74; font-size: .74rem; font-weight: 700; margin-bottom: 5px; }
+    .summary-title { font-size: 1.22rem; line-height: 1.3; font-weight: 800; }
+    .summary-next { margin-top: 7px; color: var(--muted); font-size: .82rem; }
+    .summary-next strong { color: var(--text); }
+    #cacheBar { border: 1px solid var(--border); background: rgba(32,45,65,.72); }
+    .day-group { margin-bottom: 24px; }
+    .day-label { position: sticky; top: 144px; z-index: 10; padding: 7px 2px; background: rgba(11,18,32,.92); backdrop-filter: blur(8px); }
+    .class-card {
+      min-height: 82px;
+      padding: 12px 14px 12px 0;
+      border-color: rgba(51,65,85,.72);
+      border-radius: 15px;
+      box-shadow: 0 5px 18px rgba(0,0,0,.10);
+      gap: 0;
+    }
+    .class-card:hover { border-color: rgba(249,115,22,.48); transform: translateY(-1px); }
+    .class-card.past { opacity: 1; background: rgba(21,31,48,.52); color: var(--muted); box-shadow: none; }
+    .class-card.past .class-time, .class-card.past .class-name { color: var(--muted); }
+    .class-card.next-class { border-left: 3px solid var(--orange); box-shadow: 0 8px 24px rgba(249,115,22,.10); }
+    .class-time {
+      order: -1;
+      width: 78px;
+      padding: 2px 12px;
+      text-align: center;
+      border-right: 1px solid var(--border);
+    }
+    .class-info { padding-left: 14px; }
+    .time-start { font-size: 1.08rem; }
+    .class-name-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .class-name { flex: 1; margin-bottom: 4px; font-size: 1rem; }
+    .course-badge {
+      flex: none;
+      padding: 2px 7px;
+      border-radius: 7px;
+      font-size: .64rem;
+      font-weight: 750;
+      letter-spacing: .02em;
+    }
+    .badge-cycle { color: #fdba74; background: rgba(249,115,22,.14); }
+    .badge-boxing { color: #7dd3fc; background: rgba(56,189,248,.13); }
+    .badge-other { color: #c4b5fd; background: rgba(167,139,250,.13); }
+    .class-type-dot { display: none; }
+    .class-meta { gap: 6px 10px; }
+    .class-meta .branch-meta { color: #fdba74; }
+    .empty, .state { border: 1px dashed var(--border); border-radius: 18px; background: rgba(21,31,48,.34); }
+
+    @media (min-width: 760px) {
+      header { padding-inline: 24px; }
+      main { padding-inline: 24px; }
+      .filter-panel.open { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      #content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; column-gap: 16px; }
+      .state, .empty { grid-column: 1 / -1; }
+    }
+    @media (max-width: 520px) {
+      .brand-copy small { display: none; }
+      .selects-row { grid-template-columns: minmax(92px,.82fr) minmax(0,1.45fr) 44px; }
+      .selects-row select { font-size: .82rem; }
+      .quick-tools { align-items: stretch; gap: 7px; }
+      .quick-tools .chip { padding-inline: 8px; }
+      #filterToggle { padding-inline: 11px; }
+      .day-label { top: 138px; }
+      .class-time { width: 70px; padding-inline: 9px; }
+      .class-info { padding-left: 11px; }
+      .course-badge { display: none; }
+      .class-meta { font-size: .75rem; }
+    }
   </style>
 </head>
 <body>
 
 <header>
-  <div class="header-top">
-    <div class="logo">
-      <div class="logo-icon">🚴</div>
-      <span>團課小幫手</span>
+  <div class="header-inner">
+    <div class="header-top">
+      <div class="logo">
+        <div class="logo-icon">動</div>
+        <div class="brand-copy"><span>團課小幫手</span><small>Fitness Factory 課表查詢</small></div>
+      </div>
     </div>
-    <div class="type-toggle">
-      <button class="type-btn active-全部" data-type="全部"  onclick="setType('全部')">全部</button>
-      <button class="type-btn" data-type="飛輪"    onclick="setType('飛輪')">🚴 飛輪</button>
-      <button class="type-btn" data-type="拳擊有氧" onclick="setType('拳擊有氧')">🥊 拳擊</button>
+    <div id="favRow"></div>
+    <div class="selects-row">
+      <select id="regionSel" aria-label="選擇縣市" onchange="onRegionChange()">
+        <option value="">選擇縣市</option>
+      </select>
+      <select id="branchSel" aria-label="選擇分店" onchange="updateFavBtn()">
+        <option value="">選擇分店</option>
+      </select>
+      <button id="favBtn" onclick="toggleFav()" title="收藏這間分店" aria-label="收藏這間分店" disabled>☆</button>
     </div>
+    <input id="kwInput" type="search" aria-label="搜尋課程、教練、教室或分店" placeholder="搜尋課程、教練、教室或分店…" autocomplete="off" oninput="onKeyword()">
   </div>
-  <div id="favRow"></div>
-  <div class="selects-row">
-    <select id="regionSel" onchange="onRegionChange()">
-      <option value="">選擇縣市</option>
-    </select>
-    <select id="branchSel" onchange="updateFavBtn()">
-      <option value="">選擇分店</option>
-    </select>
-    <button id="favBtn" onclick="toggleFav()" title="收藏這間分店" disabled>☆</button>
-  </div>
-  <input id="kwInput" type="search" placeholder="🔎 關鍵字篩選（課名、教練、教室、分店，如：瑜珈、阿沖）" autocomplete="off" oninput="onKeyword()">
 </header>
 
 <main>
@@ -385,25 +556,45 @@
     <span id="searchBtnText">🔍 查詢課表</span>
   </button>
 
-  <div class="filters">
-    <div class="chip-group" id="rangeChips" title="搜尋範圍（官網約公布 4 週）">
-      <button class="chip active" data-v="1" onclick="setRange(1)">本週</button>
-      <button class="chip"        data-v="2" onclick="setRange(2)">2 週</button>
-      <button class="chip"        data-v="4" onclick="setRange(4)">4 週</button>
-      <button class="chip"        data-v="6" onclick="setRange(6)">全部公布</button>
-    </div>
+  <div class="quick-tools">
     <div class="chip-group" id="dayChips">
       <button class="chip active" data-v="week"     onclick="setDayMode('week')">全部</button>
       <button class="chip"        data-v="today"    onclick="setDayMode('today')">今天</button>
       <button class="chip"        data-v="tomorrow" onclick="setDayMode('tomorrow')">明天</button>
     </div>
-    <div class="chip-group" id="periodChips">
-      <button class="chip active" data-v="all" onclick="setPeriod('all')">全天</button>
-      <button class="chip"        data-v="am"  onclick="setPeriod('am')">早上</button>
-      <button class="chip"        data-v="pm"  onclick="setPeriod('pm')">下午</button>
-      <button class="chip"        data-v="eve" onclick="setPeriod('eve')">晚上</button>
+    <button id="filterToggle" onclick="toggleFilters()" aria-expanded="false" aria-controls="filterPanel">篩選<span id="filterCount"></span></button>
+  </div>
+
+  <div id="filterPanel" class="filter-panel">
+    <div class="filter-section">
+      <div class="filter-label">搜尋範圍</div>
+      <div class="chip-group" id="rangeChips" title="搜尋範圍（官網約公布 4 週）">
+        <button class="chip active" data-v="1" onclick="setRange(1)">本週</button>
+        <button class="chip" data-v="2" onclick="setRange(2)">2 週</button>
+        <button class="chip" data-v="4" onclick="setRange(4)">4 週</button>
+        <button class="chip" data-v="6" onclick="setRange(6)">全部公布</button>
+      </div>
+    </div>
+    <div class="filter-section">
+      <div class="filter-label">課程類型</div>
+      <div class="type-toggle">
+        <button class="type-btn active-全部" data-type="全部" onclick="setType('全部')">全部</button>
+        <button class="type-btn" data-type="飛輪" onclick="setType('飛輪')">飛輪</button>
+        <button class="type-btn" data-type="拳擊有氧" onclick="setType('拳擊有氧')">拳擊／格鬥</button>
+      </div>
+    </div>
+    <div class="filter-section">
+      <div class="filter-label">上課時段</div>
+      <div class="chip-group" id="periodChips">
+        <button class="chip active" data-v="all" onclick="setPeriod('all')">全天</button>
+        <button class="chip" data-v="am" onclick="setPeriod('am')">早上</button>
+        <button class="chip" data-v="pm" onclick="setPeriod('pm')">下午</button>
+        <button class="chip" data-v="eve" onclick="setPeriod('eve')">晚上</button>
+      </div>
     </div>
   </div>
+
+  <section id="querySummary" aria-live="polite"></section>
 
   <div id="cacheBar" style="display:none">
     <span id="cacheTime"></span>
@@ -458,6 +649,7 @@
     await loadBranches();
     registerSW();
     renderFavs();
+    updateFilterCount();
     openStartBranch();
 
     // PWA 安裝提示（iOS 上無 beforeinstallprompt）
@@ -521,13 +713,23 @@
   function setChip(groupId, value) {
     document.querySelectorAll(`#${groupId} .chip`).forEach(b => b.classList.toggle('active', b.dataset.v === value));
   }
+  function toggleFilters() {
+    const panel = document.getElementById('filterPanel');
+    const open = panel.classList.toggle('open');
+    document.getElementById('filterToggle').setAttribute('aria-expanded', String(open));
+  }
+  function updateFilterCount() {
+    const count = (weeks !== 1 ? 1 : 0) + (currentType !== '全部' ? 1 : 0) + (period !== 'all' ? 1 : 0);
+    document.getElementById('filterCount').textContent = count ? String(count) : '';
+  }
   function setRange(v) {
     weeks = v;
     setChip('rangeChips', String(v));
+    updateFilterCount();
     if (document.getElementById('branchSel').value) search();   // 範圍改變需重新向伺服器取資料
   }
   function setDayMode(v) { dayMode = v; setChip('dayChips', v);    if (lastResult) renderSchedule(lastResult, currentType); }
-  function setPeriod(v)  { period  = v; setChip('periodChips', v); if (lastResult) renderSchedule(lastResult, currentType); }
+  function setPeriod(v)  { period  = v; setChip('periodChips', v); updateFilterCount(); if (lastResult) renderSchedule(lastResult, currentType); }
 
   // ─── 收藏分店（存在這支手機的 localStorage，不需登入）──────────────────────
 
@@ -606,6 +808,7 @@
     document.querySelectorAll('.type-btn').forEach(btn => {
       btn.className = 'type-btn' + (btn.dataset.type === type ? ` active-${type}` : '');
     });
+    updateFilterCount();
     // 如果已有結果，重新渲染篩選
     if (lastResult) renderSchedule(lastResult, type);
   }
@@ -711,6 +914,7 @@
     }
 
     if (classes.length === 0) {
+      renderSummary([], data);
       const filtered = kw.length || period !== 'all' || dayMode !== 'week';
       const title = sundayTomorrow ? '明天是下週一，不在「本週」範圍內'
         : kw.length ? `找不到符合「${escapeHtml(kw.join(' '))}」的課程`
@@ -728,6 +932,9 @@
         </div>`;
       return;
     }
+
+    const nextClassKey = getNextClassKey(classes);
+    renderSummary(classes, data, nextClassKey);
 
     // 按日期分組（跨週時每天各一組）
     const grouped = groupByDate(classes);
@@ -751,16 +958,22 @@
         const endTime   = cls.endTime ? formatTime(cls.endTime) : '';
 
         const past = isPast(cls);
+        const isNext = !past && classKey(cls) === nextClassKey;
+        const badgeClass = cls.type === '飛輪' ? 'badge-cycle' : cls.type === '拳擊有氧' ? 'badge-boxing' : 'badge-other';
+        const badgeText = cls.type === '拳擊有氧' ? '格鬥' : cls.type;
         html += `
-        <div class="class-card${past ? ' past' : ''}">
+        <div class="class-card${past ? ' past' : ''}${isNext ? ' next-class' : ''}">
           <div class="class-type-dot ${dotClass}"></div>
           <div class="class-info">
-            <div class="class-name">${cls.name || '未知課程'}</div>
+            <div class="class-name-row">
+              <div class="class-name">${escapeHtml(cls.name || '未知課程')}</div>
+              <span class="course-badge ${badgeClass}">${escapeHtml(badgeText)}</span>
+            </div>
             <div class="class-meta">
-              ${cls.instructor ? `<span>👤 ${cls.instructor}</span>` : ''}
-              ${cls.location   ? `<span>📍 ${cls.location}</span>`   : ''}
-              ${cls.branch     ? `<span>🏢 ${cls.branch}</span>`     : ''}
-              ${cls.spots != null ? `<span>💺 ${cls.spots} 位</span>` : ''}
+              ${cls.instructor ? `<span>教練 ${escapeHtml(cls.instructor)}</span>` : ''}
+              ${cls.location   ? `<span>${escapeHtml(cls.location)}</span>`   : ''}
+              ${cls.branch     ? `<span class="branch-meta">${escapeHtml(cls.branch)}廠</span>` : ''}
+              ${cls.spots != null ? `<span>${escapeHtml(String(cls.spots))} 位</span>` : ''}
             </div>
           </div>
           <div class="class-time">
@@ -776,6 +989,52 @@
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
+
+  function classKey(cls) {
+    return [getDate(cls), cls.time || '', cls.branch || '', cls.name || '', cls.instructor || ''].join('|');
+  }
+
+  function getNextClassKey(classes) {
+    const today = todayStr();
+    const now = nowMinutes();
+    const upcoming = classes
+      .filter(c => getDate(c) > today || (getDate(c) === today && (toMinutes(c.time) ?? -1) >= now))
+      .sort((a, b) => getDate(a).localeCompare(getDate(b)) || (a.time || '').localeCompare(b.time || ''));
+    return upcoming.length ? classKey(upcoming[0]) : '';
+  }
+
+  function renderSummary(classes, data, nextKey = '') {
+    const box = document.getElementById('querySummary');
+    if (!classes.length) {
+      box.classList.remove('show');
+      box.innerHTML = '';
+      return;
+    }
+
+    const region = document.getElementById('regionSel').value;
+    const branch = document.getElementById('branchSel').value;
+    const place = branch === ALL_BRANCHES
+      ? `${region} · ${data.branchCount || ''} 間分店`
+      : `${branch}廠`;
+    const range = weeks === 1 ? '本週' : weeks === 6 ? '全部已公布課表' : `未來 ${weeks} 週`;
+    const next = nextKey ? classes.find(c => classKey(c) === nextKey) : null;
+    const nextText = next
+      ? `下一堂 <strong>${formatSummaryDate(getDate(next))} ${formatTime(next.time)} · ${escapeHtml(next.name || '未知課程')}</strong>${next.branch ? ` · ${escapeHtml(next.branch)}廠` : ''}`
+      : '目前篩選結果中沒有尚未開始的課程';
+
+    box.innerHTML = `
+      <div class="summary-eyebrow">${escapeHtml(place)} · ${escapeHtml(range)}</div>
+      <div class="summary-title">找到 ${classes.length} 堂課</div>
+      <div class="summary-next">${nextText}</div>`;
+    box.classList.add('show');
+  }
+
+  function formatSummaryDate(date) {
+    if (date === todayStr()) return '今天';
+    if (date === tomorrowStr()) return '明天';
+    const [, m, d] = date.split('-').map(Number);
+    return `${m}/${d} ${WEEKDAY_NAMES[dateToIdx(date)]}`;
+  }
 
   function getKeyword() {
     return document.getElementById('kwInput').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -844,6 +1103,7 @@
   }
 
   function showError(msg) {
+    renderSummary([], {});
     document.getElementById('content').innerHTML = `
       <div class="state">
         <div class="state-icon">⚠️</div>
