@@ -569,10 +569,10 @@
     <div class="filter-section">
       <div class="filter-label">搜尋範圍</div>
       <div class="chip-group" id="rangeChips" title="搜尋範圍（官網約公布 4 週）">
-        <button class="chip active" data-v="1" onclick="setRange(1)">本週</button>
-        <button class="chip" data-v="2" onclick="setRange(2)">2 週</button>
-        <button class="chip" data-v="4" onclick="setRange(4)">4 週</button>
-        <button class="chip" data-v="6" onclick="setRange(6)">全部公布</button>
+        <button class="chip active" data-v="7"  onclick="setRange(7)">7 天</button>
+        <button class="chip" data-v="14" onclick="setRange(14)">14 天</button>
+        <button class="chip" data-v="28" onclick="setRange(28)">4 週</button>
+        <button class="chip" data-v="0"  onclick="setRange(0)">全部公布</button>
       </div>
     </div>
     <div class="filter-section">
@@ -639,7 +639,11 @@
   const dateToIdx = str => { const [y, m, d] = str.split('-').map(Number); return new Date(y, m - 1, d).getDay(); };
   const toMinutes = t => { const m = (t || '').match(/(\d{1,2}):(\d{2})/); return m ? +m[1] * 60 + +m[2] : null; };
 
-  let weeks   = 1;        // 搜尋範圍（週數）：1 本週 / 2 / 4 / 6 全部公布
+  // 搜尋範圍：從「今天」起算的天數（7 / 14 / 28；0 = 官網已公布的全部）。已過去的日子一律不顯示
+  let rangeDays = 7;
+  // 向伺服器要幾週：涵蓋「本週一」到範圍最後一天
+  const fetchWeeks = () => rangeDays ? Math.floor(((new Date().getDay() + 6) % 7 + rangeDays - 1) / 7) + 1 : 8;
+  const rangeEndStr = () => { const d = new Date(); d.setDate(d.getDate() + rangeDays - 1); return ymd(d); };
   let dayMode = 'week';   // 'week' | 'today' | 'tomorrow'
   let period  = 'all';    // 'all' | 'am'(<12:00) | 'pm'(12:00–17:00) | 'eve'(17:00 後)
 
@@ -719,11 +723,11 @@
     document.getElementById('filterToggle').setAttribute('aria-expanded', String(open));
   }
   function updateFilterCount() {
-    const count = (weeks !== 1 ? 1 : 0) + (currentType !== '全部' ? 1 : 0) + (period !== 'all' ? 1 : 0);
+    const count = (rangeDays !== 7 ? 1 : 0) + (currentType !== '全部' ? 1 : 0) + (period !== 'all' ? 1 : 0);
     document.getElementById('filterCount').textContent = count ? String(count) : '';
   }
   function setRange(v) {
-    weeks = v;
+    rangeDays = v;
     setChip('rangeChips', String(v));
     updateFilterCount();
     if (document.getElementById('branchSel').value) search();   // 範圍改變需重新向伺服器取資料
@@ -826,8 +830,8 @@
     try {
       // 一律取全部課程，類型與關鍵字由前端篩選，切換時不必重查
       const url = branch === ALL_BRANCHES
-        ? `/api/region-schedule?region=${encodeURIComponent(region)}&weeks=${weeks}`
-        : `/api/schedule?branch=${encodeURIComponent(branch)}&type=${encodeURIComponent('全部')}&weeks=${weeks}`;
+        ? `/api/region-schedule?region=${encodeURIComponent(region)}&weeks=${fetchWeeks()}`
+        : `/api/schedule?branch=${encodeURIComponent(branch)}&type=${encodeURIComponent('全部')}&weeks=${fetchWeeks()}`;
       const res  = await fetch(url);
       const data = await res.json();
 
@@ -902,27 +906,25 @@
 
     // 今天／明天；「今天」會隱藏已經下課的課
     const today = todayStr();
-    const sundayTomorrow = dayMode === 'tomorrow' && weeks === 1 && todayIdx() === 0;  // 明天是下週一，不在「本週」範圍內
     if (dayMode === 'today') {
       const now = nowMinutes();
       classes = classes.filter(c => getDate(c) === today && (toMinutes(c.endTime || c.time) ?? 0) >= now);
     } else if (dayMode === 'tomorrow') {
       const tomorrow = tomorrowStr();
       classes = classes.filter(c => getDate(c) === tomorrow);
-    } else if (weeks > 1) {
-      classes = classes.filter(c => getDate(c) >= today);   // 跨週搜尋：只看今天起的課，過去的日子不顯示
     }
+    // 範圍：今天起的 N 天（過去的日子不顯示；今天已下課的課在清單中淡化）
+    const rangeEnd = rangeDays ? rangeEndStr() : '9999-12-31';
+    classes = classes.filter(c => { const d = getDate(c); return d >= today && d <= rangeEnd; });
 
     if (classes.length === 0) {
       renderSummary([], data);
       const filtered = kw.length || period !== 'all' || dayMode !== 'week';
-      const title = sundayTomorrow ? '明天是下週一，不在「本週」範圍內'
-        : kw.length ? `找不到符合「${escapeHtml(kw.join(' '))}」的課程`
+      const title = kw.length ? `找不到符合「${escapeHtml(kw.join(' '))}」的課程`
         : dayMode === 'today' ? '今天沒有符合的課程了'
         : filtered ? '沒有符合條件的課程'
-        : weeks > 1 ? '這段期間官網尚未公布課程' : '本週暫無相關課程資料';
-      const hint = sundayTomorrow ? '把上方範圍改成「2 週」以上就能看到'
-        : filtered ? '可放寬關鍵字、時段或日期條件'
+        : '這段期間官網尚未公布課程';
+      const hint = filtered ? '可放寬關鍵字、時段或日期條件'
         : '可嘗試切換「全部」課程類型，或改選其他分店';
       content.innerHTML = `
         <div class="empty">
@@ -1016,7 +1018,7 @@
     const place = branch === ALL_BRANCHES
       ? `${region} · ${data.branchCount || ''} 間分店`
       : `${branch}廠`;
-    const range = weeks === 1 ? '本週' : weeks === 6 ? '全部已公布課表' : `未來 ${weeks} 週`;
+    const range = rangeDays === 0 ? '全部已公布課表' : rangeDays === 28 ? '未來 4 週' : `未來 ${rangeDays} 天`;
     const next = nextKey ? classes.find(c => classKey(c) === nextKey) : null;
     const nextText = next
       ? `下一堂 <strong>${formatSummaryDate(getDate(next))} ${formatTime(next.time)} · ${escapeHtml(next.name || '未知課程')}</strong>${next.branch ? ` · ${escapeHtml(next.branch)}廠` : ''}`

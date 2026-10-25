@@ -30,7 +30,7 @@ app.get('/api/branches', async (req, res) => {
 // ─── 課表（支援多週、整個縣市）────────────────────────────────────────────────
 
 const VALID_TYPES = ['飛輪', '拳擊有氧', '全部'];
-const MAX_REGION_WEEKS = 4;   // 整個縣市 × 多週請求量大，限制最多 4 週
+const MAX_REGION_WEEKS = 5;   // 整個縣市 × 多週請求量大，限制最多 5 週（涵蓋本週起約 4 週的公布範圍）
 
 async function getBranches() {
   const cached = cache.get('branches');

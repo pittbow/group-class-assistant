@@ -70,8 +70,8 @@ function mondayOf(dateStr) {
   return addDays(dateStr, -((dow + 6) % 7));
 }
 
-// 官網實際只公布約 4 週課表（更遠的週回傳空白），多查 2 週以涵蓋公布範圍的變動
-const MAX_WEEKS = 6;
+// 官網實際只公布約 4–5 週課表（更遠的週回傳空白，請求很快），多留一些餘裕以涵蓋公布範圍的變動
+const MAX_WEEKS = 8;
 function weekStarts(count = 1) {
   const n = Math.max(1, Math.min(MAX_WEEKS, count | 0));
   const first = mondayOf(todayTW());
