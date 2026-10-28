@@ -11,19 +11,27 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 // 以 Monday 為第 0 欄；對應前端使用的「週X」
 const WEEKDAYS_MON_FIRST = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
 
-// 地區顯示順序（官網以 data-f 區域 id 對應縣市）
+// 官網沒回應時不要無限等待
+const TIMEOUT_MS = 15000;
+
 let session = { cookie: '', html: '', t: 0 };
+let sessionPending = null;   // 多個請求同時需要新 session 時，只向官網取一次
 
 async function getSession(force = false) {
   if (!force && session.cookie && Date.now() - session.t < 20 * 60 * 1000) return session;
-  const res = await fetch(PAGE_URL, { headers: { 'User-Agent': UA } });
-  const html = await res.text();
-  session = {
-    cookie: res.headers.getSetCookie().map(c => c.split(';')[0]).join('; '),
-    html,
-    t: Date.now(),
-  };
-  return session;
+  if (sessionPending) return sessionPending;
+  sessionPending = (async () => {
+    const res = await fetch(PAGE_URL, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    if (!res.ok) throw new Error(`官網回應 ${res.status}`);
+    const html = await res.text();
+    session = {
+      cookie: res.headers.getSetCookie().map(c => c.split(';')[0]).join('; '),
+      html,
+      t: Date.now(),
+    };
+    return session;
+  })();
+  try { return await sessionPending; } finally { sessionPending = null; }
 }
 
 const decode = s => s
@@ -132,6 +140,7 @@ async function fetchSchedule(branch, type = '全部', weekStart = mondayOf(today
     const { cookie } = await getSession(attempt > 0);
     const res = await fetch(`${BASE_URL}/tw/course/ajax/filterSchedule?${q}`, {
       redirect: 'manual',
+      signal: AbortSignal.timeout(TIMEOUT_MS),
       headers: {
         'User-Agent': UA,
         Cookie: cookie,
@@ -157,4 +166,4 @@ function getDefaultBranches() {
   ];
 }
 
-module.exports = { fetchBranches, fetchSchedule, getDefaultBranches, weekStarts, matchesType, MAX_WEEKS };
+module.exports = { fetchBranches, fetchSchedule, getDefaultBranches, weekStarts, matchesType, parseSchedule, MAX_WEEKS };

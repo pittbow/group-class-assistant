@@ -666,12 +666,41 @@
 
   async function loadBranches() {
     try {
-      const res = await fetch('/api/branches');
-      branches  = await res.json();
+      branches = await fetchJson('/api/branches');
       renderRegions();
     } catch (e) {
       console.error('載入分店失敗', e);
+      document.getElementById('content').innerHTML = `
+        <div class="state">
+          <div class="state-icon">⚠️</div>
+          <h3>無法載入分店清單</h3>
+          <p>${escapeHtml(e.message)}</p>
+          <button class="chip" style="margin-top:12px" onclick="retryInit()">重試</button>
+        </div>`;
     }
+  }
+
+  async function retryInit() {
+    document.getElementById('content').innerHTML = '<div class="state"><p>載入中…</p></div>';
+    await loadBranches();
+    if (branches.length) {
+      document.getElementById('content').innerHTML = '<div class="state"><div class="state-icon">🏋️</div><h3>選擇分店查詢課表</h3></div>';
+      openStartBranch();
+    }
+  }
+
+  // 統一處理網路錯誤與非 JSON 回應（例如 Render 部署中、喚醒中的錯誤頁）
+  async function fetchJson(url, opts) {
+    let res;
+    try { res = await fetch(url, opts); }
+    catch (e) { throw new Error('連不上伺服器，請確認網路後再試'); }
+    let data = null;
+    try { data = await res.json(); } catch (e) { /* 非 JSON */ }
+    if (!res.ok || data == null) {
+      throw new Error((data && data.error)
+        || (res.status >= 500 ? '伺服器暫時無法回應（可能正在更新或喚醒中），請稍後再試' : `查詢失敗（${res.status}）`));
+    }
+    return data;
   }
 
   // ─── Dropdowns ────────────────────────────────────────────────────────────
@@ -819,10 +848,12 @@
 
   // ─── Search ───────────────────────────────────────────────────────────────
 
+  let searchSeq = 0;
   async function search() {
     const branch = document.getElementById('branchSel').value;
     if (!branch) { showToast('請先選擇分店'); return; }
     const region = document.getElementById('regionSel').value;
+    const seq = ++searchSeq;   // 快速切換分店／範圍時，只採用最後一次查詢的結果
 
     setLoading(true);
     document.getElementById('cacheBar').style.display = 'none';
@@ -832,11 +863,10 @@
       const url = branch === ALL_BRANCHES
         ? `/api/region-schedule?region=${encodeURIComponent(region)}&weeks=${fetchWeeks()}`
         : `/api/schedule?branch=${encodeURIComponent(branch)}&type=${encodeURIComponent('全部')}&weeks=${fetchWeeks()}`;
-      const res  = await fetch(url);
-      const data = await res.json();
+      const data = await fetchJson(url);
+      if (seq !== searchSeq) return;
 
-      if (!res.ok) throw new Error(data.error || '查詢失敗');
-
+      data.sel = { region, branch };
       lastResult = data;
       renderSchedule(data, currentType);
       if (branch !== ALL_BRANCHES) store.set('gca:last', { region, branch });
@@ -847,25 +877,29 @@
         cacheBar.style.display = 'flex';
         document.getElementById('cacheTime').textContent =
           `資料時間：${new Date(data.fetchedAt).toLocaleString('zh-TW', { month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' })}`
+          + (data.stale ? '（官網暫時連不上，部分為較舊的資料）' : '')
           + (data.failed && data.failed.length ? `（載入失敗：${data.failed.join('、')}）` : '');
       }
     } catch (err) {
-      showError(err.message);
+      if (seq === searchSeq) showError(err.message);
     } finally {
-      setLoading(false);
+      if (seq === searchSeq) setLoading(false);
     }
   }
 
   async function refresh() {
     const branch = document.getElementById('branchSel').value;
     if (!branch) return;
-    await fetch('/api/refresh', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(branch === ALL_BRANCHES
-        ? { region: document.getElementById('regionSel').value }
-        : { branch, type: '全部' })
-    });
+    try {
+      const r = await fetchJson('/api/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(branch === ALL_BRANCHES
+          ? { region: document.getElementById('regionSel').value }
+          : { branch, type: '全部' })
+      });
+      if (r.throttled) showToast(r.message);
+    } catch (e) { /* 清快取失敗不影響查詢 */ }
     await search();
   }
 
@@ -1013,8 +1047,7 @@
       return;
     }
 
-    const region = document.getElementById('regionSel').value;
-    const branch = document.getElementById('branchSel').value;
+    const { region, branch } = data.sel || currentSel();
     const place = branch === ALL_BRANCHES
       ? `${region} · ${data.branchCount || ''} 間分店`
       : `${branch}廠`;
@@ -1095,13 +1128,19 @@
     return `${m[1].padStart(2,'0')}:${m[2]}`;
   }
 
+  let slowTimer;
   function setLoading(loading) {
     const btn  = document.getElementById('searchBtn');
     const text = document.getElementById('searchBtnText');
     btn.disabled = loading;
+    clearTimeout(slowTimer);
     text.innerHTML = loading
       ? '<div class="spinner"></div> 載入中…'
       : '🔍 查詢課表';
+    // 免費主機閒置後會休眠，第一次查詢可能要等 20–30 秒
+    if (loading) slowTimer = setTimeout(() => {
+      text.innerHTML = '<div class="spinner"></div> 伺服器喚醒中，第一次約需 30 秒…';
+    }, 4000);
   }
 
   function showError(msg) {
@@ -1110,7 +1149,7 @@
       <div class="state">
         <div class="state-icon">⚠️</div>
         <h3>查詢失敗</h3>
-        <p>${msg}</p>
+        <p>${escapeHtml(String(msg))}</p>
       </div>`;
   }
 

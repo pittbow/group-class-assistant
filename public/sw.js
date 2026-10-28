@@ -1,6 +1,10 @@
 // Service Worker — 讓 PWA 可在離線時顯示上次的課表
+//
+// 策略：
+// - 頁面與 API：網路優先，失敗（離線）才用快取 → 部署新版後，下次開啟就是新版
+// - 只快取成功的回應，避免伺服器錯誤頁蓋掉原本可用的資料
 
-const CACHE_NAME = 'group-class-v8';
+const CACHE_NAME = 'group-class-v9';
 const STATIC_ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (e) => {
@@ -19,25 +23,23 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
+function networkFirst(request) {
+  return fetch(request)
+    .then(res => {
+      if (res.ok) {
+        const clone = res.clone();
+        caches.open(CACHE_NAME).then(c => c.put(request, clone));
+      }
+      return res;
+    })
+    .catch(() => caches.match(request).then(cached =>
+      cached || (request.mode === 'navigate' ? caches.match('/') : Response.error())));
+}
+
 self.addEventListener('fetch', (e) => {
+  if (e.request.method !== 'GET') return;          // POST（重新抓取）直接走網路
   const url = new URL(e.request.url);
+  if (url.origin !== self.location.origin) return;  // 外部資源不攔截
 
-  // API 請求：先嘗試網路，失敗則用快取
-  if (url.pathname.startsWith('/api/')) {
-    e.respondWith(
-      fetch(e.request)
-        .then(res => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
-          return res;
-        })
-        .catch(() => caches.match(e.request))
-    );
-    return;
-  }
-
-  // 靜態資源：快取優先
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
-  );
+  e.respondWith(networkFirst(e.request));
 });
